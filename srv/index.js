@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const ws = require('ws');
 
 const cors = require('cors');
 const path = require('path');
@@ -20,7 +21,33 @@ app.use(reqIp.mw());
 users.register(app);
 
 app.use(cors);
-app.use('/',express.static(path.join(__dirname,'..','horde-io-client','dist')));
+app.use('/', express.static(path.join(__dirname, '..', 'horde-io-client', 'dist')));
 
 
-app.listen(3000);
+const http = app.listen(3000);
+
+const wsServer = new ws.Server({ noServer: true });
+wsServer.on('connection', (socket, req) => {
+
+    const ip = req.socket.remoteAddress;
+
+    socket.on('message', (message) => console.log(message.toString()));
+
+    setInterval(() => {
+
+        wsServer.clients.forEach(c => {
+            c.send(ip);
+        })
+
+    }, 100);
+
+});
+
+
+
+
+http.on('upgrade', (request, socket, head) => {
+    wsServer.handleUpgrade(request, socket, head, socket => {
+        wsServer.emit('connection', socket, request);
+    });
+});
